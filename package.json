@@ -1,6 +1,6 @@
 {
   "name": "erc8056",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reference implementation and canonical explainer for ERC-8056 (uiMultiplier()), the corporate-actions standard behind Robinhood's Stock Tokens. Solidity reference contracts plus exact-bigint TypeScript helpers for share-equivalent balances and multiplier-adjusted pricing.",
   "keywords": [
     "erc8056",
@@ -23,7 +23,7 @@
     "type": "git",
     "url": "git+https://github.com/nirholas/robinhood-chain-erc8056.git"
   },
-  "homepage": "https://nirholas.github.io/erc8056/",
+  "homepage": "https://nirholas.github.io/robinhood-chain-erc8056/",
   "bugs": {
     "url": "https://github.com/nirholas/robinhood-chain-erc8056/issues"
   },
