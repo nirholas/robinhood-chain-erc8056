@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>erc8056: corporate actions for tokenized equities, without rebasing</title>
+<meta name="description" content="Reference implementation and canonical explainer for ERC-8056 (uiMultiplier()), the corporate-actions standard behind Robinhood's Stock Tokens on chain 4663. Solidity reference contracts plus exact-bigint TypeScript helpers.">
+<link rel="stylesheet" href="./site.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<nav class="top" aria-label="Site">
+  <div class="wrap">
+    <a class="brand" href="./index.html">erc<span class="tick">8056</span></a>
+    <div class="links">
+      <a href="#problem">The problem</a>
+      <a href="#rules">The two rules</a>
+      <a href="#split" class="hide-sm">Worked example</a>
+      <a href="#integrators">Integrators</a>
+      <a href="#evidence">Evidence</a>
+      <a href="https://github.com/nirholas/robinhood-chain-erc8056">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <h1>Corporate actions<br>without <span class="grad">rebasing anything</span></h1>
+  <p class="lede">
+    ERC-8056 lets a tokenized share survive splits, reverse splits, and reinvested dividends
+    without ever rewriting a balance. One global <code>uiMultiplier()</code> records how many
+    shares one token represents. This is the reference implementation, and the explainer for
+    the two rules every integration has to get right.
+  </p>
+  <div class="cta">
+    <span class="install"><span class="dollar">$</span> npm install erc8056 viem</span>
+    <a class="btn primary" href="#rules">The two rules</a>
+    <a href="#problem" class="btn">Why not rebase?</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section class="block" id="problem">
+  <h2>A tokenized share has to survive a 4:1 split</h2>
+  <p class="sub">
+    One share becomes four. The token contract has to reflect that. There are three ways to
+    do it, and two of them break the ecosystem around the token.
+  </p>
+
+  <div class="grid three">
+    <div class="card bad">
+      <h3>Mint to every holder</h3>
+      <p>
+        Iterate the holder set and mint the difference. Requires unbounded iteration, and is
+        simply impossible for tokens sitting in AMM pools, vaults, and bridges that were never
+        built to receive an airdrop.
+      </p>
+      <span class="verdict">Does not scale, does not reach contracts</span>
+    </div>
+    <div class="card bad">
+      <h3>Rebase</h3>
+      <p>
+        Redefine <code>balanceOf</code> so every balance scales. Every cached balance is now
+        wrong, every AMM invariant shifts under the pool, and every system that assumed
+        <code>transfer(x)</code> moves exactly <code>x</code> silently miscounts.
+      </p>
+      <span class="verdict">Breaks integrations that did nothing wrong</span>
+    </div>
+    <div class="card good">
+      <h3>Move a multiplier</h3>
+      <p>
+        Leave balances alone. Publish a single 1e18-scaled ratio saying how many shares one
+        token now represents. Nothing moves, no <code>Transfer</code> fires, and integrations
+        opt in to the adjustment when they are ready.
+      </p>
+      <span class="verdict">ERC-8056</span>
+    </div>
+  </div>
+
+  <div class="disclosure">
+    The price of that design is that the token now has <strong>two units</strong>, and mixing
+    them up is the entire integration risk. Everything below is about keeping them straight.
+  </div>
+
+  <div class="units">
+    <span class="unit-chip"><span class="swatch token"></span> <strong>TOKEN</strong> - what <code>balanceOf</code> returns and <code>transfer</code> moves. Never changes on a corporate action.</span>
+    <span class="unit-chip"><span class="swatch share"></span> <strong>SHARE-EQUIVALENT</strong> - what the holder economically owns. Changes on every corporate action.</span>
+  </div>
+</section>
+
+<section class="block" id="rules">
+  <h2>The two rules</h2>
+  <p class="sub">
+    Both are enforced by the type system in this package, not merely documented.
+    <code>TokenAmount</code> and <code>ShareAmount</code> are distinct types, and prices carry
+    a runtime-inspectable <code>unit</code> tag.
+  </p>
+
+  <div class="rule">
+    <div class="num">1</div>
+    <div>
+      <h3>A Chainlink Robinhood feed answer is already multiplier-adjusted</h3>
+      <p>
+        The answer is the price of one <strong>TOKEN</strong>, not one share. It is a
+        total-return price: after a 4:1 split it does not move. To recover the price of the
+        underlying share, <strong>divide</strong> by the multiplier.
+      </p>
+      <p class="formula">
+        sharePrice = answer &times; 1e18 <span class="em">&divide;</span> uiMultiplier
+        &nbsp;&nbsp;&nbsp; <span class="wrong">answer &times; uiMultiplier</span>
+      </p>
+      <p>
+        To value a position, multiply the <strong>raw</strong> balance by the feed price.
+        Using the share-equivalent balance there double-counts the corporate action.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule">
+    <div class="num">2</div>
+    <div>
+      <h3>Share-equivalent quantities are balance &times; multiplier &divide; 1e18</h3>
+      <p>
+        The raw <code>balanceOf</code> value stops being a share count the moment a corporate
+        action lands. The division <strong>truncates</strong>, matching the on-chain
+        <code>balanceOfUI()</code> exactly. Rounding up instead would let the sum of holder
+        balances exceed the total share supply.
+      </p>
+      <p class="formula">
+        shareEquivalent = balance <span class="em">&times;</span> uiMultiplier <span class="em">&divide;</span> 1e18
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="split">
+  <h2>A 4:1 split, in full</h2>
+  <p class="sub">
+    Alice holds 100 tokens. The issuer runs a 4:1 split. Here is every number that matters,
+    before and after.
+  </p>
+
+  <div class="split-viz">
+    <div class="split-row">
+      <div class="split-side">
+        <div class="caption">Before the split</div>
+        <div class="stack">
+          <div class="bar token"><span class="k">balanceOf</span><span class="v">100</span></div>
+          <div class="bar mult"><span class="k">uiMultiplier</span><span class="v">1.0</span></div>
+          <div class="bar share"><span class="k">balanceOfUI</span><span class="v">100</span></div>
+          <div class="bar"><span class="k">feed answer</span><span class="v">$315.50</span></div>
+        </div>
+      </div>
+
+      <div class="split-arrow" aria-hidden="true">
+        <svg width="56" height="26" viewBox="0 0 56 26" fill="none">
+          <path d="M2 13h48" stroke="#34343c" stroke-width="2" stroke-linecap="round"/>
+          <path d="M42 5l10 8-10 8" stroke="#7ef29a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <span>applySplit(4, 1)</span>
+      </div>
+
+      <div class="split-side">
+        <div class="caption">After the split</div>
+        <div class="stack">
+          <div class="bar token"><span class="k">balanceOf</span><span class="v">100</span></div>
+          <div class="bar mult"><span class="k">uiMultiplier</span><span class="v">4.0</span></div>
+          <div class="bar share"><span class="k">balanceOfUI</span><span class="v">400</span></div>
+          <div class="bar"><span class="k">feed answer</span><span class="v">$315.50</span></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="split-note">
+      <strong>The balance did not move and no <code>Transfer</code> event fired.</strong>
+      An indexer that only watches <code>Transfer</code> sees nothing at all, which is exactly
+      why <code>UIMultiplierUpdated</code> is the authoritative corporate-action signal.
+    </p>
+  </div>
+
+  <div class="table-scroll" style="margin-top:20px">
+    <table>
+      <thead>
+        <tr><th>Quantity</th><th>Before</th><th>After</th><th>Moved?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>balanceOf(alice)</code></td><td><span class="tk">100</span></td><td><span class="tk">100</span></td><td class="no">no</td></tr>
+        <tr><td><code>uiMultiplier()</code></td><td><code>1e18</code></td><td><code>4e18</code></td><td class="yes">yes</td></tr>
+        <tr><td><code>balanceOfUI(alice)</code></td><td><span class="sh">100</span></td><td><span class="sh">400</span></td><td class="yes">yes</td></tr>
+        <tr><td><code>totalSupply()</code></td><td>unchanged</td><td>unchanged</td><td class="no">no</td></tr>
+        <tr><td>Chainlink answer (per token)</td><td>$315.50</td><td>$315.50</td><td class="no">no</td></tr>
+        <tr><td>Share price (answer &divide; multiplier)</td><td>$315.50</td><td>$78.875</td><td class="yes">yes</td></tr>
+        <tr><td>Alice's position value</td><td>$31,550</td><td>$31,550</td><td class="no">no</td></tr>
+        <tr><td><code>Transfer</code> events emitted</td><td>-</td><td>none</td><td class="no">no</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="disclosure warn">
+    The two failure modes this table rules out. A tracker printing <code>balanceOf</code> as a
+    share count says Alice owns <strong>100 shares</strong>; she owns <strong>400</strong>. A
+    pricer multiplying the feed answer by the multiplier values her position at
+    <strong>$126,200</strong>, four times the truth. Both are asserted in the test suites.
+  </div>
+</section>
+
+<section class="block" id="integrators">
+  <h2>Recipes</h2>
+  <p class="sub">Node &ge; 20. <code>viem</code> is a peer dependency.</p>
+
+  <div class="tabs" role="tablist" aria-label="Integration recipes">
+    <button class="tab-btn" role="tab" aria-selected="true" aria-controls="tab-portfolio" id="btn-portfolio">If you display a portfolio</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-price" id="btn-price">If you price a token</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-token" id="btn-token">If you write the token</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-portfolio" role="tabpanel" aria-labelledby="btn-portfolio">
+<pre><code>import { createPublicClient, http } from 'viem'
+import { robinhood } from 'viem/chains'
+import { readUiMultiplier, shareEquivalent, tokenAmount, toDecimalString } from 'erc8056'
+
+const client = createPublicClient({ chain: robinhood, transport: http() })
+const SGOV = '0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5'
+
+const multiplier = await readUiMultiplier(client, SGOV)
+const balance = tokenAmount(1_000_000_000_000_000_000_000n) // 1000 SGOV tokens
+
+console.log(toDecimalString(balance, 18))                             // '1000'  &lt;- tokens
+console.log(toDecimalString(shareEquivalent(balance, multiplier), 18)) // '1000.957519890990718'  &lt;- shares</code></pre>
+    <p class="sub">
+      Never print <code>balanceOf</code> as a share count. <code>readUiMultiplier</code>
+      resolves a pre-ERC-8056 token to <code>1e18</code> instead of throwing, and
+      <strong>propagates transport failures</strong> rather than absorbing them: answering
+      &ldquo;the multiplier is 1.0&rdquo; because an RPC timed out would misreport every
+      position on a token that has accrued.
+    </p>
+  </div>
+
+  <div class="tab-panel" id="tab-price" role="tabpanel" aria-labelledby="btn-price">
+<pre><code>import {
+  formatPrice, positionValue, sharePriceFromFeed,
+  tokenAmount, tokenPriceFromFeed, uiMultiplier,
+} from 'erc8056'
+
+const answer = 10_068_131_213n                             // live SGOV Chainlink answer, 8 decimals
+const multiplier = uiMultiplier(1_000_957_519_890_990_718n)
+
+const perToken = tokenPriceFromFeed(answer, 8)             // rule 1: no adjustment
+const perShare = sharePriceFromFeed(answer, 8, multiplier) // rule 1: DIVIDE
+
+console.log(formatPrice(perToken))  // '100.68131213 per token'
+console.log(formatPrice(perShare))  // '100.58499999 per share'
+
+// Value a position with the RAW balance and the TOKEN price.
+const value = positionValue(tokenAmount(10n * 10n ** 18n), perToken, 18)
+console.log(value)                  // { value: 100681312130n, decimals: 8 }  -&gt;  $1006.81312130</code></pre>
+    <p class="sub">
+      Passing <code>perShare</code> to <code>positionValue</code> is a compile error, and a
+      <code>PriceUnitMismatchError</code> at runtime if you force it past the type checker.
+    </p>
+  </div>
+
+  <div class="tab-panel" id="tab-token" role="tabpanel" aria-labelledby="btn-token">
+<pre><code>import {ERC8056} from "erc8056/contracts/ERC8056.sol";
+
+contract MyStockToken is ERC8056 {
+    address public immutable transferAgent;
+
+    constructor(address agent) ERC8056("My Stock Token", "MST") {
+        transferAgent = agent;
+    }
+
+    function _authorizeCorporateAction() internal view override {
+        require(msg.sender == transferAgent, "not the transfer agent");
+    }
+
+    /// A 4:1 split. No balance moves, no Transfer fires.
+    function split() external {
+        _applySplit(4, 1);
+    }
+}</code></pre>
+    <p class="sub">
+      Authorization is left abstract on purpose: a corporate action is the most sensitive
+      operation on a tokenized security, and the right guard is issuer-specific. See
+      <code>contracts/ERC8056StockToken.sol</code> for the deployable version with role
+      separation, issuance, and ERC-165.
+    </p>
+  </div>
+</section>
+
+<section class="block" id="evidence">
+  <h2>This is live, not theoretical</h2>
+  <p class="sub">
+    93 of the 95 canonical Stock Tokens sit at exactly <code>1e18</code> today. Two do not,
+    and they prove the mechanism is load-bearing right now. Reproduce with
+    <code>npm run verify:onchain</code>.
+  </p>
+
+<pre><code>Robinhood Chain mainnet (chain 4663) via https://rpc.mainnet.chain.robinhood.com
+Block 14994060
+
+Checking ERC-8056 invariants across all 95 canonical Stock Tokens...
+  95/95 tokens implement uiMultiplier()
+  totalSupplyUI() == truncating mulDiv(totalSupply, uiMultiplier, 1e18) on every one of them
+
+Tokens with a corporate action already applied (uiMultiplier != 1.0):
+  SGOV   0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5  uiMultiplier() = 1000957519890990718
+         = 1.000957519890990718 shares per token   iShares 0-3 Month Treasury Bond
+  WEEK   0xc93a8c440CEa26D7445dF01729f193b27965099f  uiMultiplier() = 2006182524271844660
+         = 2.00618252427184466 shares per token   Roundhill Weekly T-Bill ETF
+
+Rule 1 on live data (SGOV, feed 0xa0DF4ee0fFf975306345875E3548Fcc519577A11):
+  Chainlink answer            10068131213 (100.68131213 per TOKEN)
+  divided by the multiplier   100.58499999 per SHARE
+  the wrong way (multiply)    100.77771648 &lt;- overstates the share price
+
+Pre-ERC-8056 fallback (a real contract with no uiMultiplier()):
+  WETH   0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73  implemented = false, resolves to 1e18 [OK]
+
+PASS: 95 tokens verified, 2 with a live corporate action applied.</code></pre>
+
+  <div class="grid three" style="margin-top:18px">
+    <div class="card">
+      <h3>Rule 2 is the chain's own arithmetic</h3>
+      <p>
+        <code>totalSupplyUI()</code> read from each contract equals
+        <code>mulDiv(totalSupply, uiMultiplier, 1e18)</code> computed locally, on all 95
+        tokens, truncating. Round differently and you disagree with the chain here.
+      </p>
+    </div>
+    <div class="card">
+      <h3>The non-1.0 multipliers are accruals</h3>
+      <p>
+        SGOV and WEEK are T-bill funds whose multipliers grow as income is distributed. Their
+        holders own more shares than their balances say, continuously. A tracker printing
+        <code>balanceOf</code> as shares is already wrong on these two today.
+      </p>
+    </div>
+    <div class="card">
+      <h3>The fallback works on a real contract</h3>
+      <p>
+        WETH on chain 4663 has no <code>uiMultiplier()</code>, and
+        <code>readMultiplierState</code> reports <code>implemented: false</code> with a 1e18
+        multiplier rather than throwing or inventing a number.
+      </p>
+    </div>
+  </div>
+
+  <div class="disclosure">
+    Registry snapshots of this chain commonly record <code>uiMultiplierAtGeneration</code> as
+    <code>1000000000000000000</code> for every token. That was true when those snapshots were
+    taken. It is not true now. <strong>Read the multiplier live.</strong>
+  </div>
+</section>
+
+<section class="block" id="verification">
+  <h2>Verification</h2>
+  <p class="sub">Every claim on this page is reproducible from a checkout.</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Command</th><th>What it proves</th></tr></thead>
+      <tbody>
+        <tr><td><code>npm run build:contracts</code></td><td>Compiles <code>contracts/</code> with solc 0.8.30. Zero warnings, zero errors.</td></tr>
+        <tr><td><code>npm test</code></td><td>80 vitest tests, including the ABI fragments checked against the real compiler output.</td></tr>
+        <tr><td><code>npm run test:sol</code></td><td>31 Foundry tests: splits, reverse splits, fractional multipliers, rounding, scheduling, authorization, and 2 fuzz suites.</td></tr>
+        <tr><td><code>npm run typecheck</code></td><td><code>tsc --noEmit</code> under <code>strict</code>, <code>exactOptionalPropertyTypes</code>, <code>noUncheckedIndexedAccess</code>.</td></tr>
+        <tr><td><code>npm run verify:onchain</code></td><td>The live mainnet output above.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>erc8056 - reference implementation and explainer for ERC-8056 on Robinhood Chain (4663).</span>
+    <span>
+      <a href="https://github.com/nirholas/robinhood-chain-erc8056">GitHub</a> &nbsp;
+      <a href="https://www.npmjs.com/package/erc8056">npm</a> &nbsp;
+      <a href="https://robinhoodchain.blockscout.com">Blockscout</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+  // Tab panels: click and arrow-key navigation, no dependencies.
+  const buttons = Array.from(document.querySelectorAll('.tab-btn'));
+
+  function select(button) {
+    for (const other of buttons) {
+      const panel = document.getElementById(other.getAttribute('aria-controls'));
+      const active = other === button;
+      other.setAttribute('aria-selected', String(active));
+      if (panel) panel.classList.toggle('active', active);
+    }
+    button.focus();
+  }
+
+  buttons.forEach((button, index) => {
+    button.addEventListener('click', () => select(button));
+    button.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const step = event.key === 'ArrowRight' ? 1 : -1;
+      select(buttons[(index + step + buttons.length) % buttons.length]);
+    });
+  });
+</script>
+
+</body>
+</html>
