@@ -1,0 +1,89 @@
+{
+  "name": "erc8056",
+  "version": "0.1.0",
+  "description": "Reference implementation and canonical explainer for ERC-8056 (uiMultiplier()), the corporate-actions standard behind Robinhood's Stock Tokens. Solidity reference contracts plus exact-bigint TypeScript helpers for share-equivalent balances and multiplier-adjusted pricing.",
+  "keywords": [
+    "erc8056",
+    "erc-8056",
+    "uimultiplier",
+    "corporate-actions",
+    "stock-split",
+    "reverse-split",
+    "tokenized-equity",
+    "stock-tokens",
+    "robinhood",
+    "robinhood-chain",
+    "chainlink",
+    "solidity",
+    "viem"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "nirholas (https://x.com/nichxbt)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nirholas/robinhood-chain-erc8056.git"
+  },
+  "homepage": "https://nirholas.github.io/erc8056/",
+  "bugs": {
+    "url": "https://github.com/nirholas/robinhood-chain-erc8056/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./math": {
+      "types": "./dist/math/index.d.ts",
+      "import": "./dist/math/index.js",
+      "require": "./dist/math/index.cjs"
+    },
+    "./abi": {
+      "types": "./dist/abi/index.d.ts",
+      "import": "./dist/abi/index.js",
+      "require": "./dist/abi/index.cjs"
+    },
+    "./contracts/*": "./contracts/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "contracts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "build:contracts": "node scripts/build-contracts.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build:contracts && vitest run tests",
+    "test:watch": "vitest",
+    "test:sol": "forge test -vv",
+    "verify:onchain": "node scripts/verify-onchain.mjs",
+    "example:portfolio": "tsx examples/portfolio.ts",
+    "example:pricing": "tsx examples/pricing.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "peerDependencies": {
+    "viem": "^2.55.0"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^5.6.0",
+    "@types/node": "^22.10.2",
+    "hoodchain": "^0.1.1",
+    "solc": "0.8.30",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "viem": "^2.55.0",
+    "vitest": "^2.1.8"
+  }
+}

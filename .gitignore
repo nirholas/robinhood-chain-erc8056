@@ -1,0 +1,14 @@
+node_modules/
+dist/
+out/
+cache/
+artifacts/
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+*.sqlite
+*.db
+.DS_Store
+foundry.lock
