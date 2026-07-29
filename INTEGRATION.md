@@ -160,6 +160,6 @@ worth deciding explicitly:
 ## Reference
 
 - Full API table and worked example: [README.md](./README.md)
-- The explainer, with diagrams: <https://nirholas.github.io/erc8056/>
+- The explainer, with diagrams: <https://nirholas.github.io/robinhood-chain-erc8056/>
 - Solidity reference: [`contracts/`](./contracts)
 - Live invariant check: [`scripts/verify-onchain.mjs`](./scripts/verify-onchain.mjs)

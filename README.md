@@ -7,7 +7,7 @@ TypeScript library that makes integrating it hard to get wrong. If you display a
 price a token, or index transfers of a tokenized equity, this is the standard you have to
 handle, and there are exactly two rules you have to get right.
 
-Docs: **https://nirholas.github.io/erc8056/**
+Docs: **https://nirholas.github.io/robinhood-chain-erc8056/**
 
 ## The problem
 
