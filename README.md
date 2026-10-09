@@ -337,3 +337,7 @@ submodule (`git submodule update --init`). `npm test` compiles the same contract
 ## License
 
 Proprietary, all rights reserved. See [LICENSE](./LICENSE).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=nirholas/robinhood-chain-erc8056&type=Date)](https://www.star-history.com/#nirholas/robinhood-chain-erc8056&Date)
