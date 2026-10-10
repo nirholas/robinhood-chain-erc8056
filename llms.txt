@@ -1,0 +1,28 @@
+# robinhood-chain-erc8056
+
+> Reference implementation and canonical explainer for ERC-8056 (uiMultiplier()), the corporate-actions standard behind Robinhood's Stock Tokens. npm: erc8056.
+
+robinhood-chain-erc8056 is an open-source repository by nirholas, part of the three.ws ecosystem.
+
+## Docs
+
+- [README](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md): install, usage and reference
+- [The problem](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#the-problem)
+- [The two rules](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#the-two-rules)
+- [Evidence: this is live, not theoretical](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#evidence-this-is-live-not-theoretical)
+- [Install](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#install)
+- [Quickstart](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#quickstart)
+- [A worked example: the 4:1 split](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#a-worked-example-the-41-split)
+- [Repository layout](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#repository-layout)
+- [API reference](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/README.md#api-reference)
+- [AGENTS.md](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/AGENTS.md): guidance for coding agents
+- [Full text for LLMs](https://github.com/nirholas/robinhood-chain-erc8056/blob/HEAD/llms-full.txt): the README inlined
+
+## Project
+
+- [Source](https://github.com/nirholas/robinhood-chain-erc8056)
+- [Issues](https://github.com/nirholas/robinhood-chain-erc8056/issues)
+- [Discussions](https://github.com/nirholas/robinhood-chain-erc8056/discussions)
+- [Homepage](https://nirholas.github.io/robinhood-chain-erc8056/)
+- [three.ws](https://three.ws): the platform this is part of
+- [All repositories by nirholas](https://github.com/nirholas/nirholas#readme)
