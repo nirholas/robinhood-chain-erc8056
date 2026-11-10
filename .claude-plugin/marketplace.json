@@ -1,0 +1,21 @@
+{
+  "name": "robinhood-chain-erc8056",
+  "owner": {
+    "name": "nirholas"
+  },
+  "description": "Reference library for ERC-8056 uiMultiplier() math: share-equivalent balances and per-share prices for Stock Tokens.",
+  "plugins": [
+    {
+      "name": "erc8056",
+      "source": "./plugins/erc8056",
+      "description": "Reference library for ERC-8056 uiMultiplier() math: share-equivalent balances and per-share prices for Stock Tokens.",
+      "category": "development",
+      "tags": [
+        "erc8056",
+        "robinhood-chain",
+        "typescript",
+        "viem"
+      ]
+    }
+  ]
+}

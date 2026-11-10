@@ -1,0 +1,17 @@
+{
+  "name": "erc8056",
+  "version": "0.1.1",
+  "description": "Reference library for ERC-8056 uiMultiplier() math: share-equivalent balances and per-share prices for Stock Tokens.",
+  "author": {
+    "name": "nirholas"
+  },
+  "repository": "https://github.com/nirholas/robinhood-chain-erc8056",
+  "homepage": "https://nirholas.github.io/robinhood-chain-erc8056/",
+  "keywords": [
+    "erc8056",
+    "uiMultiplier",
+    "robinhood-chain",
+    "stock-tokens",
+    "viem"
+  ]
+}
